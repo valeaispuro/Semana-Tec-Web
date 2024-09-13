@@ -19,23 +19,41 @@
     <input type="text" v-model="city" placeholder="Busca una ciudad">
     <button @click="getAirQuality()">Calidad del aire</button>
     <button @click="getChatGptResponse()">Acciones para ayudar</button>
+
+    <div v-if="airQualityString">
+      <h2>Calidad del Aire en {{ city }}</h2>
+      <p>{{ airQualityString }}</p>
+    </div>
+
+    <div v-if="chatGptResponse">
+      <h2>Consejos para mejorar la salud de la ciudad:</h2>
+      <p>{{ chatGptResponse }}</p>
+    </div>
+    
+    <div v-if="errorMessage" class="alert alert-danger">
+      <p>{{ errorMessage }}</p>
+    </div>
   </div>
 
   <script type="text/javascript"> 
     var app = new Vue({ 
       el: '#app',
       data: { 
-        city: ''
+        city: '',
+        airQualityString: '',
+        chatGptResponse: '',
+        errorMessage: ''
       },
       methods: {
         async getAirQuality() {
+          this.clearMessages();
           try {
             const response = await fetch("http://localhost:3000/api/get-air-quality", {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ city: this.city})
+              body: JSON.stringify({ city: this.city })
             });
 
             if (!response.ok) {
@@ -45,16 +63,18 @@
             const data = await response.json();
 
             const cityName = data.city;
-            const airQualityString = data.airQuality;
+            this.airQualityString = data.airQuality;
 
             myp5.ponerTitulo(cityName);
-            myp5.actualizarCalidadAire(airQualityString);
+            myp5.actualizarCalidadAire(this.airQualityString);
 
           } catch (error) {
-            console.error("No se pudieron obtener datos de Weatherbit:", error);
+            this.errorMessage = "No se pudieron obtener datos de Weatherbit.";
+            console.error("Error obteniendo datos de Weatherbit:", error);
           }
         },
         async getChatGptResponse() {
+          this.clearMessages();
           try {
             const response = await fetch("http://localhost:3000/api/get-chatgpt-response", {
               method: 'POST',
@@ -74,8 +94,14 @@
             myp5.mostrarConsejos(this.chatGptResponse);
 
           } catch (error) {
-            console.error("No se pudieron obtener datos de ChatGPT:", error);
+            this.errorMessage = "No se pudo obtener la respuesta de ChatGPT.";
+            console.error("Error obteniendo respuesta de ChatGPT:", error);
           }
+        },
+        clearMessages() {
+          this.airQualityString = '';
+          this.chatGptResponse = '';
+          this.errorMessage = '';
         }
       }
     });

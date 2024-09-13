@@ -1,29 +1,19 @@
 const express = require('express');
 const cors = require('cors');
+const fetch = require('node-fetch');
 const app = express();
 const port = 3000;
-const { OpenAI } = require('openai');
-const fetch = require('node-fetch');
-//const dotenv = require('dotenv');
-
-//dotenv.config();
 
 app.use(cors());
 app.use(express.json());
 
-const openai = new OpenAI({
-  apiKey: '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', // Replace with your OpenAI API key
-});
-
 app.post('/api/get-air-quality', async (req, res) => {
-    const {city} = req.body;
-    //const {weatherbitApiKey} = apis.env.WEATHERBIT_API_KEY;
-    //const {weatherbitApiKey} = 'e476601f555645509a852f9a9e5a1041';
+    const { city } = req.body;
 
     try {
-        const weatherbitResponse = await fetch("https://api.weatherbit.io/v2.0/current/airquality?city=${city}&key=e476601f555645509a852f9a9e5a1041");
+        const weatherbitResponse = await fetch(`https://api.weatherbit.io/v2.0/current/airquality?city=${city}&key=e476601f555645509a852f9a9e5a1041`);
         if (!weatherbitResponse.ok) {
-            throw new Error("Weatherbit API: ${weatherbitResponse.status}");
+            throw new Error(`Weatherbit API: ${weatherbitResponse.status}`);
         }
 
         const weatherbitData = await weatherbitResponse.json();
@@ -49,32 +39,49 @@ app.post('/api/get-air-quality', async (req, res) => {
         });
     } catch (error) {
         console.error("Error obteniendo datos:", error);
-        res.status(500).json({ error: "Error obteniendo calidad del aire: ${error.message}" });
+        res.status(500).json({ error: `Error obteniendo calidad del aire: ${error.message}` });
     }
 });
 
 app.post('/api/get-chatgpt-response', async (req, res) => {
-  const { airQualityString } = req.body;
-  const {city} = req.body;
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'user',
-          content: `Con esta informacion: ${airQualityString}, propon actividades que se puedan hacer en la ciudad ${city} para mejorar la salud de la ciudad.`
-        }
-      ],
-    });
+  const apiKey = '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'; // Replace with your actual API key
 
-    res.json({
-      chatGptResponse: response.choices[0]?.message?.content || "No response"
-    });
+  try {
+      const { airQualityString, city } = req.body;
+
+      const messages = [
+          { role: 'system', content: 'You are an assistant that provides actionable insights based on air quality data.' },
+          { role: 'user', content: `Basándote en los datos de la calidad del aire: ${airQualityString}, ¿qué tres acciones específicas se pueden tomar para mejorar la calidad del aire en la ciudad ${city}? Especifica por qué cada una de estas acciones sería efectiva en esa ciudad. Hazlas cortas` }
+      ];
+
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+              model: "gpt-3.5-turbo",
+              messages: messages,
+              max_tokens: 150,
+              temperature: 0.7
+          })
+      });
+
+      if (!openaiResponse.ok) {
+          throw new Error(`OpenAI API: ${openaiResponse.status}`);
+      }
+
+      const openaiData = await openaiResponse.json();
+      const chatGptResponse = openaiData.choices[0].message.content.trim();
+      res.json({ chatGptResponse });
+
   } catch (error) {
-    console.error("Error obteniendo respuesta de ChatGPT:", error);
-    res.status(500).json({ error: `Error obteniendo respuesta de ChatGPT: ${error.message}` });
+      console.error('Error obteniendo respuesta de ChatGPT:', error);
+      res.status(500).send('Error obteniendo respuesta de ChatGPT.');
   }
 });
+
 
 app.listen(port, () => {
     console.log(`Servidor en http://localhost:${port}`);
