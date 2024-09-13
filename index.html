@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AirHealth Advisor</title>
+  <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:200,300,400,600,700" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cirrus-ui/dist/cirrus.min.css">
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <script src="libraries/p5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="sketch.js"></script>
+</head>
+<body>
+  <div id="p5"></div>
+  
+  <div id="app">
+    <h1>AirHealth Advisor</h1>
+    <input type="text" v-model="city" placeholder="Busca una ciudad">
+    <button @click="getAirQuality()">Calidad del aire</button>
+    <button @click="getChatGptResponse()">Acciones para ayudar</button>
+  </div>
+
+  <script type="text/javascript"> 
+    var app = new Vue({ 
+      el: '#app',
+      data: { 
+        city: ''
+      },
+      methods: {
+        async getAirQuality() {
+          try {
+            const response = await fetch("http://localhost:3000/api/get-air-quality", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ city: this.city})
+            });
+
+            if (!response.ok) {
+              throw new Error('No se pudo obtener la información correctamente');
+            }
+
+            const data = await response.json();
+
+            const cityName = data.city;
+            const airQualityString = data.airQuality;
+
+            myp5.ponerTitulo(cityName);
+            myp5.actualizarCalidadAire(airQualityString);
+
+          } catch (error) {
+            console.error("No se pudieron obtener datos de Weatherbit:", error);
+          }
+        },
+        async getChatGptResponse() {
+          try {
+            const response = await fetch("http://localhost:3000/api/get-chatgpt-response", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ airQualityString: this.airQualityString, city: this.city })
+            });
+
+            if (!response.ok) {
+              throw new Error('No se pudo obtener la respuesta de ChatGPT correctamente');
+            }
+
+            const data = await response.json();
+            this.chatGptResponse = data.chatGptResponse;
+
+            myp5.mostrarConsejos(this.chatGptResponse);
+
+          } catch (error) {
+            console.error("No se pudieron obtener datos de ChatGPT:", error);
+          }
+        }
+      }
+    });
+  </script> 
+</body>
+</html>
